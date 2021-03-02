@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -38,7 +37,7 @@ func deleteHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 
 func getHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 	valueToSlice := strings.Split(m.Text, " ")
-	dateValue := valueToSlice[1]
+	dateValue := valueToSlice[0]
 
 	var find Weight
 
@@ -61,10 +60,10 @@ func getHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 	}
 }
 
-func postHandler(m *tb.Message, collection *mongo.Collection) {
-	valueToSlice := strings.Split(m.Text, " ")
-	dateValue := valueToSlice[1]
-	weightValue, _ := strconv.ParseFloat(valueToSlice[2], 64)
+func postHandler(m *tb.Message, collection *mongo.Collection, dateValue string, weightValue float64) {
+	//valueToSlice := strings.Split(m.Text, " ")
+	//dateValue := valueToSlice[1]
+	//weightValue, _ := strconv.ParseFloat(valueToSlice[2], 64)
 
 	postValue := Weight{Date: dateValue, Weight: weightValue, ID: m.Sender.ID}
 

@@ -3,8 +3,6 @@ package telegram
 import (
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 	"time"
 
 	//"time"
@@ -25,7 +23,7 @@ type Weight struct {
 
 var (
 	// Universal markup builders.
-	//r.menu
+	dateLayout = "2006-Jan-02"
 	date []string
 	menu = &tb.ReplyMarkup{ResizeReplyKeyboard: true}
 	post = &tb.ReplyMarkup{ResizeReplyKeyboard: true}
@@ -46,18 +44,18 @@ var (
 	btnPost2021 = post.Text("2021")
 	btnPost2022 = post.Text("2022")
 
-	btnPostYan = post.Text("Январь")
-	btnPostFeb = post.Text("Февраль")
-	btnPostMar = post.Text("Март")
-	btnPostApr = post.Text("Апрель")
-	btnPostMay = post.Text("Май")
-	btnPostJun = post.Text("Июнь")
-	btnPostJul = post.Text("Июль")
-	btnPostAug = post.Text("Август")
-	btnPostSep = post.Text("Сентябрь")
-	btnPostOct = post.Text("Октябрь")
-	btnPostNov = post.Text("Ноябрь")
-	btnPostDec = post.Text("Декабрь")
+	btnPostYan = post.Text("Yan")
+	btnPostFeb = post.Text("Feb")
+	btnPostMar = post.Text("Mar")
+	btnPostApr = post.Text("Apr")
+	btnPostMay = post.Text("May")
+	btnPostJun = post.Text("Jun")
+	btnPostJul = post.Text("Jul")
+	btnPostAug = post.Text("Aug")
+	btnPostSep = post.Text("Sep")
+	btnPostOct = post.Text("Oct")
+	btnPostNov = post.Text("Nov")
+	btnPostDec = post.Text("Dec")
 
 	btn01 = days.Text("01")
 	btn02 = days.Text("02")
@@ -94,7 +92,6 @@ var (
 	btnGetMenu  = menu.Text("Посмотреть статистику")
 	btnGetGraph = get.Text("Построить график")
 	btnGetDate  = get.Text("Получить значение на Х дату")
-
 	btnBackMenu = post.Text("Вернуться в меню")
 )
 
@@ -113,43 +110,12 @@ func NewBot(configBot tb.Settings) {
 		log.Fatal(err)
 	}
 
-	//b.Handle("/hello", func(m *tb.Message) {
-	//	b.Send(m.Sender, "Hello World!")
-	//})
-
-	//b.Handle("/get", func(m *tb.Message) {
-	//	getHandler(m, collection, b)
-	//})
-
-	//b.Handle("/delete", func(m *tb.Message) {
-	//	deleteHandler(m, collection, b)
-	//})
-
-	//b.Handle("/graph", func(m *tb.Message) {
-	//	graphHandler(m, collection, b)
-	//})
-
-	//b.Handle("/post", func(m *tb.Message) {
-	//	valueToSlice := strings.Split(m.Text, " ")
-	//	dateValue := valueToSlice[1]
-	//	weightValue, _ := strconv.ParseFloat(valueToSlice[2], 64)
-	//	postHandler(m, collection,dateValue,weightValue)
-	//})
-
-	//b.Handle("/graph", func(m *tb.Message) {
-	//	graphHandler(m, collection, b)
-	//})
 	b.Handle("/start", func(m *tb.Message) {
 		if !m.Private() {
 			return
 		}
 		b.Send(m.Sender, "Привет!", menu)
 	})
-
-	menu.Reply(
-		menu.Row(btnPostMenu),
-		menu.Row(btnGetMenu),
-	)
 
 	post.Reply(
 		post.Row(btnPostToday),
@@ -223,53 +189,67 @@ func NewBot(configBot tb.Settings) {
 		get.Row(btnBackMenu),
 	)
 
-	// Кнопки для добавления данных
+	// Главное меню
+	menu.Reply(
+		menu.Row(btnPostMenu),
+		menu.Row(btnGetMenu),
+	)
+	// Добавить данные
 	b.Handle(&btnPostMenu, func(m *tb.Message) {
+		date = []string{}
 		b.Send(m.Sender, "Вводим данные за сегодня?", post)
 	})
 
+	// Получить данные
+	b.Handle(&btnGetMenu, func(m *tb.Message) {
+		date = []string{}
+		b.Send(m.Sender, "Что вы хотите посмотреть?", get)
+	})
+
+	//b.Handle(&btnPostToday, func(m *tb.Message) {
+	//	b.Send(m.Sender, "Введите свой вес в кг. Пример: 60.5", back)
+	//	b.Handle(tb.OnText, func(m *tb.Message) {
+	//
+	//		valueToSlice := strings.Split(m.Text, " ")
+	//		weightValue, err := strconv.ParseFloat(valueToSlice[0], 64)
+	//		if err != nil {
+	//			b.Send(m.Sender, "Введите корректное значение веса. Пример: 60.5")
+	//		}
+	//		postHandler(m, collection, time.Now().Format(dateLayout), weightValue)
+	//		b.Send(m.Sender, "Ваш сегодняшний вес: "+valueToSlice[0]+" кг.", menu)
+	//	})
+	//})
+
+	// Добавить данные за сегодня
 	b.Handle(&btnPostToday, func(m *tb.Message) {
-		b.Send(m.Sender, "Введите свой весь в кг. Пример: 60.5", back)
-
+		b.Send(m.Sender, "Введите свой вес в кг. Пример: 60.5", back)
 		b.Handle(tb.OnText, func(m *tb.Message) {
-			//now := time.Now()
-			layout := "2006-01-02"
-			valueToSlice := strings.Split(m.Text, " ")
-			dateValue := time.Now().Format(layout)
-			weightValue, _ := strconv.ParseFloat(valueToSlice[0], 64)
-			postHandler(m, collection, dateValue, weightValue)
-
-			b.Send(m.Sender, "Ваш сегодняшний вес: "+valueToSlice[0]+" кг.", menu)
+			postToday(m, collection, b, time.Now().Format(dateLayout))
+			b.Send(m.Sender, "Ваш сегодняшний вес записан.", menu)
 		})
-
 	})
 
 	b.Handle(&btnPostOtherDate, func(m *tb.Message) {
-		//b.Send(m.Sender, "Введи дату замера (год-месяц-день) и свой вес в кг. Пример: 2020-12-31 65", back)
+		date = append(date, "postDate")
 		b.Send(m.Sender, "Выберите год.", ages)
 
 	})
 
 	// Кнопки для получения данных
-	b.Handle(&btnGetMenu, func(m *tb.Message) {
-		b.Send(m.Sender, "Что вы хотите посмотреть?", get)
-	})
-
 	b.Handle(&btnGetGraph, func(m *tb.Message) {
 		b.Send(m.Sender, "", get)
 		graphHandler(m, collection, b)
 	})
 
 	b.Handle(&btnGetDate, func(m *tb.Message) {
-		b.Send(m.Sender, "Введи дату замера (год-месяц-день). Пример: 2020-12-31", get)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			getHandler(m, collection, b)
-		})
+		date = append(date, "getDate")
+		b.Send(m.Sender, "Выберите год", ages)
 	})
 
 	// Кнопки для возврата в меню
 	b.Handle(&btnBackMenu, func(m *tb.Message) {
 		b.Send(m.Sender, "Возвращаемся в меню", menu)
+
 	})
 
 	// Выбираем год
@@ -348,320 +328,421 @@ func NewBot(configBot tb.Settings) {
 		b.Send(m.Sender, "Выберите число.", days)
 	})
 
-	// // // /// // /// //// Числа
-	//b.Send(m.Sender, "Данные за "+date[0]+"-"+date[1]+"-"+date[2], back)
-
+	// Кнопки чисел
+	//b.Handle(&btn01, func(m *tb.Message) {
+	//	date = append(date, m.Text)
+	//	if date[0] == "postDate" {
+	//		postDate(m, collection, b, date)
+	//	}
+	//	getHandler(m, collection, b, date)
+	//	b.Send(m.Sender, "Идем обратно в меню.", menu)
+	//
+	//})
 	b.Handle(&btn01, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 
 	b.Handle(&btn02, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+	
 	b.Handle(&btn03, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn04, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn05, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn06, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn07, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn08, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn09, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn10, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn11, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn12, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn13, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn14, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn15, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
+	
 	})
+
 	b.Handle(&btn16, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn17, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn18, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn19, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn20, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn21, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn22, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn23, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn24, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn25, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn26, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn27, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn28, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn29, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn30, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 	b.Handle(&btn31, func(m *tb.Message) {
 		date = append(date, m.Text)
-
-		b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			weightValue, _ := strconv.ParseFloat(m.Text, 64)
-			dateValue := date[0] + "-" + date[1] + "-" + date[2]
-			postHandler(m, collection, dateValue, weightValue)
-		})
+		if date[0] == "postDate" {
+			b.Send(m.Sender, "Введите ваш вес в кг. Пример: 60.5", back)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				postOtherDate(m, collection,b, date)
+			})
+			return
+		}
+		getValue(m, collection, b, date)
+		b.Send(m.Sender, "Готов к получению команд.", menu)
 	})
+
 
 	b.Start()
 }

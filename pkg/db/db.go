@@ -2,7 +2,7 @@ package db
 
 import (
 	"context"
-	"fmt"
+	"github.com/spf13/viper"
 	"log"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -10,32 +10,28 @@ import (
 )
 
 var (
-	//collection *mongo.Collection
 	ctx = context.TODO()
 )
 
 func InitCollection() *mongo.Collection {
 	// Create client
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://127.0.0.1:27017"))
+	client, err := mongo.NewClient(options.Client().ApplyURI(viper.GetString("mongo.url")))
 	if err != nil {
-		fmt.Println("error in 'Create client'")
-		log.Fatal(err)
+		log.Fatalf("Error in 'Create client': %v", err)
 	}
 
 	// Create connect
 	err = client.Connect(ctx)
 	if err != nil {
-		fmt.Println("error in 'Create connect'")
-		log.Fatal(err)
+		log.Fatalf("Error in 'Create connect': %v", err)
 	}
 
 	// Check the connection
 	err = client.Ping(ctx, nil)
 	if err != nil {
-		fmt.Println("error in 'Check the connection'")
-		log.Fatal(err)
+		log.Fatalf("Error in 'Check the connection': %v", err)
 	}
 
-	return client.Database("test").Collection("trainers")
+	return client.Database(viper.GetString("mongo.db")).Collection(viper.GetString("mongo.collection"))
 
 }

@@ -3,8 +3,10 @@ package telegram
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -15,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// TODO создать функцию для удаления данных
 func deleteHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 	valueToSlice := strings.Split(m.Text, " ")
 	dateValue := valueToSlice[1]
@@ -36,11 +39,13 @@ func deleteHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 	}
 }
 
-func graphHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
+// TODO генерировать график исходя из дат по оси X
+// getGraph генерирует график из введенных раннее данных
+func getGraph(m *tb.Message, c *mongo.Collection, b *tb.Bot) {
 	filter := bson.D{{"id", m.Sender.ID}}
-	cursor, err := collection.Find(context.TODO(), filter)
+	cursor, err := c.Find(context.TODO(), filter)
 	if err != nil {
-		fmt.Println("collection.Find ERROR:", err)
+		fmt.Println("c.Find ERROR:", err)
 	}
 
 	var y []float64
@@ -90,102 +95,84 @@ func graphHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 	}
 }
 
-func postToday(m *tb.Message, collection *mongo.Collection, b *tb.Bot, dateValue string) {
-
-	// Узнаем значение введеного веса
-	valueToSlice := strings.Split(m.Text, " ")
-	weightValue, err := strconv.ParseFloat(valueToSlice[0], 64)
-	if err != nil {
-		b.Send(m.Sender, "Введите корректное значение веса. Пример: 60.5")
+// generateDate подготавливает структуру данных для получения данных из БД
+func generateDate(m *tb.Message, b *tb.Bot, weight *Weight) error {
+	valueMatched, _ := regexp.MatchString(`[0-9][0-9]\/[0-9][0-9]\/[0-9][0-9]`, m.Text)
+	if valueMatched != true {
+		b.Send(m.Sender, "Неверный формат данных!\nВведите дату в формате `21/10/21`.")
+		return errors.New("Error from generateDate")
 	}
-	postValue := Weight{Date: dateValue, Weight: weightValue, ID: m.Sender.ID}
-
-	var find Weight
-
-	// Ищем совпадение на основе полей даты и ID отправителя
-	filter := bson.D{{"date", dateValue}, {"id", m.Sender.ID}}
-	_ = collection.FindOne(context.TODO(), filter).Decode(&find)
-
-	// Если не находим, то создаём запись в БД
-	if find.Weight == 0 {
-		_, err := collection.InsertOne(context.TODO(), postValue)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("Значение добавлено")
-
-		// Иначе обновляем значение
-	} else {
-		update := bson.D{
-			{"$set", bson.D{
-				{"weight", weightValue},
-			}},
-		}
-		_, err := collection.UpdateOne(context.TODO(), filter, update)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("Значение обновлено")
-	}
+	weight.Date = m.Text
+	return nil
 }
 
-func postOtherDate(m *tb.Message, collection *mongo.Collection, b *tb.Bot, date []string) {
-	weightValue, err := strconv.ParseFloat(m.Text, 64)
-	if err != nil {
-		b.Send(m.Sender, "Ошибка ввода! Используйте только цифры. Пример: 60.5")
-		return
-	}
-	dateValue := date[1] + "-" + date[2] + "-" + date[3]
-	postValue := Weight{Date: dateValue, Weight: weightValue, ID: m.Sender.ID}
-
+// getDate получает данные из БД исходя из переданной даты
+func getDate(m *tb.Message, collection *mongo.Collection, b *tb.Bot, weight Weight) error {
 	var find Weight
 
 	// Ищем совпадение на основе полей даты и ID отправителя
-	filter := bson.D{{"date", dateValue}, {"id", m.Sender.ID}}
-	_ = collection.FindOne(context.TODO(), filter).Decode(&find)
-
-	// Если не находим, то создаём запись в БД
-	if find.Weight == 0 {
-		_, err := collection.InsertOne(context.TODO(), postValue)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("Значение добавлено")
-
-		// Иначе обновляем значение
-	} else {
-		update := bson.D{
-			{"$set", bson.D{
-				{"weight", weightValue},
-			}},
-		}
-		_, err := collection.UpdateOne(context.TODO(), filter, update)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("Значение обновлено")
-	}
-	b.Send(m.Sender, "Готов к получению команд.", menu)
-}
-
-func getValue(m *tb.Message, collection *mongo.Collection, b *tb.Bot,date []string) {
-	dateValue := date[1] + "-" + date[2] + "-" + date[3]
-	var find Weight
-
-	// Ищем совпадение на основе полей даты и ID отправителя
-	filter := bson.D{{"date", dateValue}, {"id", m.Sender.ID}}
+	filter := bson.D{{"date", weight.Date}, {"id", m.Sender.ID}}
 	err := collection.FindOne(context.TODO(), filter).Decode(&find)
 
 	if err != nil {
 		fmt.Println("Нет таких данных")
-		_, err := b.Send(m.Sender, "Данные за "+dateValue+" отсутствуют.")
+		_, err := b.Send(m.Sender, "Данные за "+weight.Date+" отсутствуют.")
 		if err != nil {
 			log.Fatal(err)
 		}
-		return
+		return errors.New("Error from getDate")
 	}
-		_, err = b.Send(m.Sender, "Вес за "+find.Date+" -- "+fmt.Sprintf("%.1f", find.Weight)+"кг")
+	_, err = b.Send(m.Sender, "Вес за "+find.Date+" -- "+fmt.Sprintf("%.1f", find.Weight)+"кг")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return nil
+}
+
+// TODO добавить проверку на валидные даты : высокосный год, числа в месяце и тд
+// generateValue подготавливает дату и значение веса для записи в БД
+func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
+	valueMatched, _ := regexp.MatchString(`[0-9][0-9]\/[0-9][0-9]\/[0-9][0-9] [0-9]*.?[0-9]`, m.Text)
+	if valueMatched != true {
+		b.Send(m.Sender, "Неверный формат данных!\nВведите дату и вес в формате `21/10/21 80.5`.")
+		return errors.New("Error from generateValue")
+	}
+	s := strings.Split(m.Text, " ")
+	weight.Date = s[0]
+	weight.Weight, _ = strconv.ParseFloat(s[1], 64)
+	weight.ID = m.Sender.ID
+
+	return nil
+}
+
+// postValue записывает данные в БД исходя из созданных в generateValue
+func postValue(m *tb.Message, c *mongo.Collection, b *tb.Bot, w Weight) {
+
+	var find Weight
+
+	// Ищем совпадение на основе полей даты и ID отправителя
+	filter := bson.D{{"date", w.Date}, {"id", w.ID}}
+	_ = c.FindOne(context.TODO(), filter).Decode(&find)
+
+	// Если не находим, то создаём запись в БД
+	if find.Weight == 0 {
+		_, err := c.InsertOne(context.TODO(), w)
 		if err != nil {
 			log.Fatal(err)
 		}
+		fmt.Println("Значение добавлено.")
+
+		// Иначе обновляем значение
+	} else {
+		update := bson.D{
+			{"$set", bson.D{
+				{"weight", w.Weight},
+			}},
+		}
+		_, err := c.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Значение обновлено.")
+	}
 }

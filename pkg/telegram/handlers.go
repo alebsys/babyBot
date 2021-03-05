@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	tb "gopkg.in/tucnak/telebot.v2"
@@ -97,10 +97,11 @@ func getGraph(m *tb.Message, c *mongo.Collection, b *tb.Bot) {
 
 // generateDate подготавливает структуру данных для получения данных из БД
 func generateDate(m *tb.Message, b *tb.Bot, weight *Weight) error {
-	valueMatched, _ := regexp.MatchString(`[0-9][0-9]\/[0-9][0-9]\/[0-9][0-9]`, m.Text)
-	if valueMatched != true {
-		b.Send(m.Sender, "Неверный формат данных!\nВведите дату в формате `21/10/21`.")
-		return errors.New("Error from generateDate")
+	s := strings.Split(m.Text, " ")
+
+	if err := validationDate(s, b); err != nil {
+		b.Send(m.Sender, "Неверный формат даты!\nВведите дату (число/месяц/год) в формате `21/10/21 80.5`.")
+		return errors.New("Error from generateValue")
 	}
 	weight.Date = m.Text
 	return nil
@@ -129,19 +130,42 @@ func getDate(m *tb.Message, collection *mongo.Collection, b *tb.Bot, weight Weig
 	return nil
 }
 
-// TODO добавить проверку на валидные даты : высокосный год, числа в месяце и тд
 // generateValue подготавливает дату и значение веса для записи в БД
 func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
-	valueMatched, _ := regexp.MatchString(`[0-9][0-9]\/[0-9][0-9]\/[0-9][0-9] [0-9]*.?[0-9]`, m.Text)
-	if valueMatched != true {
-		b.Send(m.Sender, "Неверный формат данных!\nВведите дату и вес в формате `21/10/21 80.5`.")
+	s := strings.Split(m.Text, " ")
+
+	if err := validationDate(s, b); err != nil {
+		b.Send(m.Sender, "Неверный формат даты!\nВведите дату (число/месяц/год) и вес (в кг) в формате `21/10/21 80.5`.")
 		return errors.New("Error from generateValue")
 	}
-	s := strings.Split(m.Text, " ")
+
+	if err := validationWeigth(s, b); err != nil {
+		b.Send(m.Sender, "Неверный формат значения веса!\nВведите дату (число/месяц/год) и вес (в кг) в формате `21/10/21 80.5`.")
+		return errors.New("Error from generateValue")
+	}
+	// After the checks carried out, we assign the values to the variable
 	weight.Date = s[0]
 	weight.Weight, _ = strconv.ParseFloat(s[1], 64)
 	weight.ID = m.Sender.ID
 
+	return nil
+}
+
+// validationDate validation of the entered date
+func validationDate(s []string, b *tb.Bot) error {
+	_, err := time.Parse("02/01/06", s[0])
+	if err != nil {
+		return errors.New("Error from validationDate")
+	}
+	return nil
+}
+
+// validationWeigth validation of the entered weight
+func validationWeigth(s []string, b *tb.Bot) error {
+	_, err := strconv.ParseFloat(s[1], 64)
+	if err != nil {
+		return errors.New("Error from validationWeigth")
+	}
 	return nil
 }
 

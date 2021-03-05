@@ -99,8 +99,8 @@ func getGraph(m *tb.Message, c *mongo.Collection, b *tb.Bot) {
 func generateDate(m *tb.Message, b *tb.Bot, weight *Weight) error {
 	s := strings.Split(m.Text, " ")
 
-	if err := validationDate(s, b, m); err != nil {
-		b.Send(m.Sender, err)
+	if err := validationDate(s[0]); err != nil {
+		b.Send(m.Sender, "Неверный формат даты!\nДата должна быть:\n* в формате *число/месяц/год*\n* за сегодняшнее или предыдущие числа\nПример `21/10/21`")
 		return errors.New("Error from generateValue")
 	}
 	weight.Date = m.Text
@@ -134,14 +134,16 @@ func getDate(m *tb.Message, collection *mongo.Collection, b *tb.Bot, weight Weig
 func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
 	s := strings.Split(m.Text, " ")
 
-	if err := validationDate(s, b, m); err != nil {
+	// if err := validationDate(s, b, m); err != nil {
+	if err := validationDate(s[0]); err != nil {
 
-		// b.Send(m.Sender, err)
+		b.Send(m.Sender, "Неверный формат даты!\nДата должна быть:\n* в формате *число/месяц/год*\n* за сегодняшнее или предыдущие числа\nПример `21/10/21`")
 		return errors.New("Error from validationDate")
 	}
 
-	if err := validationWeigth(s, b, m); err != nil {
+	if err := validationWeigth(s[1]); err != nil {
 
+		b.Send(m.Sender, "Неверный формат значения веса!\nВес должен быть:\n* в формате десятичного числа\n* с разделителем в виде точки (.)\nПример `80` или `76.6`")
 		return errors.New("Error from validationWeigth")
 	}
 	// After the checks carried out, we assign the values to the variable
@@ -152,26 +154,25 @@ func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
 	return nil
 }
 
+// TODO поломана функция
 // validationDate validation of the entered date
-func validationDate(s []string, b *tb.Bot, m *tb.Message) error {
+// func validationDate(s []string, b *tb.Bot, m *tb.Message) error {
+func validationDate(s string) error {
 	today := time.Now()
-	d, err := time.Parse("02/01/06", s[0])
+	d, err := time.Parse("02/01/06", s)
 	if err != nil {
-		b.Send(m.Sender, "Неверный формат даты!\nДата должна быть:\n*в формате *число/месяц/год**\n* за сегодняшнее или предыдущие числа\nПример `21/10/21`")
 		return errors.New("error from validationDate")
 	}
 	if today.Before(d) {
-		b.Send(m.Sender, "Неверный формат даты!\nДата должна быть:\n*в формате *число/месяц/год**\n* за сегодняшнее или предыдущие числа\nПример `21/10/21`")
 		return errors.New("error from validationDate")
 	}
 	return nil
 }
 
 // validationWeigth validation of the entered weight
-func validationWeigth(s []string, b *tb.Bot, m *tb.Message) error {
-	_, err := strconv.ParseFloat(s[1], 64)
+func validationWeigth(s string) error {
+	_, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		b.Send(m.Sender, "Неверный формат значения веса!\nВес должен быть:\n* в формате десятичного числа\n* с разделителем в виде точки (.)\nПример `80` или `76.6`")
 		return errors.New("Error from validationWeigth")
 	}
 	return nil

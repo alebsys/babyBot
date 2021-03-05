@@ -79,6 +79,7 @@ func NewBot(configBot tb.Settings) {
 
 	// Обрабатывает ввод данных
 	b.Handle(&btnPostValue, func(m *tb.Message) {
+		weight = Weight{}
 		b.Send(m.Sender, "Введите дату(число/месяц/год) и свой вес в кг.\nПример: `21/10/21 80.3` или `01/10/20 65`.", back)
 		b.Handle(tb.OnText, func(m *tb.Message) {
 			if err := generateValue(m, b, &weight); err != nil {

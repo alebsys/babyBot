@@ -55,6 +55,9 @@ func NewBot(configBot tb.Settings) {
 			return
 		}
 		b.Send(m.Sender, "Привет!", menu)
+		b.Handle(tb.OnText, func(m *tb.Message) {
+			b.Send(m.Sender, "Выберите один из пунктов меню.", menu)
+		})
 	})
 
 	// Главное меню
@@ -83,6 +86,9 @@ func NewBot(configBot tb.Settings) {
 			}
 			postValue(m, collection, b, weight)
 			b.Send(m.Sender, "Значение добавлено в базу данных.", menu)
+			b.Handle(tb.OnText, func(m *tb.Message) {
+				b.Send(m.Sender, "Выберите один из пунктов меню.", menu)
+			})
 		})
 	})
 
@@ -90,6 +96,9 @@ func NewBot(configBot tb.Settings) {
 	b.Handle(&btnGetMenu, func(m *tb.Message) {
 		weight = Weight{}
 		b.Send(m.Sender, "Что вы хотите посмотреть?", get)
+		b.Handle(tb.OnText, func(m *tb.Message) {
+			b.Send(m.Sender, "Выберите один из пунктов меню.", get)
+		})
 	})
 
 	// Обрабатывает получение данных за определенную дату
@@ -113,6 +122,9 @@ func NewBot(configBot tb.Settings) {
 	// Выход в стартовое меню
 	b.Handle(&btnBackMenu, func(m *tb.Message) {
 		b.Send(m.Sender, "Давайте заново!", menu)
+		b.Handle(tb.OnText, func(m *tb.Message) {
+			b.Send(m.Sender, "Выберите один из пунктов меню.", menu)
+		})
 	})
 
 	b.Start()

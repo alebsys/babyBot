@@ -84,7 +84,7 @@ func getGraph(m *tb.Message, c *mongo.Collection, b *tb.Bot) {
 	err = graph.Render(chart.PNG, buffer)
 	if err != nil {
 		log.Printf("graph.Render ERROR: %v", err)
-		b.Send(m.Sender, "Слишком мало данных для отображения. Добавьте еще!")
+		b.Send(m.Sender, "Слишком мало данных для отображения, минимум 2 записи.\nДобавьте еще!")
 		return
 	}
 

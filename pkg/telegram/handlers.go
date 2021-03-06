@@ -163,7 +163,7 @@ func validationDate(s string) error {
 		return fmt.Errorf("problem parsing date")
 	}
 	if time.Now().Before(d) {
-		return fmt.Errorf("the date entered cannot be later than today")
+		return errors.New("error from future")
 	}
 	return nil
 }

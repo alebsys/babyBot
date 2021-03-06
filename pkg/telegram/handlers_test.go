@@ -1,28 +1,24 @@
 package telegram
 
-import (
-	"errors"
-	"fmt"
-	"reflect"
-	"testing"
-)
+import "testing"
 
-func Test_validationDate(t *testing.T) {
-	var testCases = []struct {
-		input string
-		want  error
-	}{
-		{"02/01/06", nil},
-		{"02-01-06", errors.New("problem parsing date")},
-		{"02/13/06", errors.New("problem parsing date")},
-		{"02/08/22", errors.New("the date entered cannot be later than today")},
-	}
+type validationDateTest struct {
+	name     string
+	date     string
+	expected string
+}
 
-	for _, tc := range testCases {
-		fmt.Println(tc.want)
-		err := validationDate(tc.input)
-		if !reflect.DeepEqual(err, tc.want) {
-			t.Errorf("\nunexpected error: %v\nexpected error: %v", err, tc.want)
+var validationDateTests = []validationDateTest{
+	{"Sanity", "02/01/06", ""},
+	{"With error", "02-01-06", "error from validationDate"},
+	{"Empty", "", "error from validationDate"},
+}
+
+func TestValidationDate(t *testing.T) {
+	for _, test := range validationDateTests {
+		err := validationDate(test.date)
+		if err != nil && err.Error() != test.expected {
+			t.Errorf("test %s failed. Got: %v, want: %v", test.name, err.Error(), test.expected)
 		}
 	}
 }

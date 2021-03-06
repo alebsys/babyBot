@@ -158,13 +158,12 @@ func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
 // validationDate validation of the entered date
 // func validationDate(s []string, b *tb.Bot, m *tb.Message) error {
 func validationDate(s string) error {
-	today := time.Now()
 	d, err := time.Parse("02/01/06", s)
 	if err != nil {
-		return errors.New("error from validationDate")
+		return fmt.Errorf("problem parsing date")
 	}
-	if today.Before(d) {
-		return errors.New("error from validationDate")
+	if time.Now().Before(d) {
+		return fmt.Errorf("the date entered cannot be later than today")
 	}
 	return nil
 }

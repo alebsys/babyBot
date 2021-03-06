@@ -160,7 +160,7 @@ func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
 func validationDate(s string) error {
 	d, err := time.Parse("02/01/06", s)
 	if err != nil {
-		return fmt.Errorf("problem parsing date")
+		return errors.New("problem parsing date")
 	}
 	if time.Now().Before(d) {
 		return errors.New("error from future")

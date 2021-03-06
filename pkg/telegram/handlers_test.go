@@ -10,8 +10,8 @@ type validationDateTest struct {
 
 var validationDateTests = []validationDateTest{
 	{"Sanity", "02/01/06", ""},
-	{"With error", "02-01-06", "error from validationDate"},
-	{"Empty", "", "error from validationDate"},
+	{"With error", "02-01-06", "problem parsing date"},
+	{"Empty", "", "problem parsing date"},
 	{"Future", "02/01/55", "error from future"},
 }
 

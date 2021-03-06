@@ -22,7 +22,7 @@ func deleteHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 	valueToSlice := strings.Split(m.Text, " ")
 	dateValue := valueToSlice[1]
 
-	filter := bson.D{{"date", dateValue}, {"id", m.Sender.ID}}
+	filter := bson.D{{Key: "date", Value: dateValue}, {Key: "id", Value: m.Sender.ID}}
 
 	// response, _ := fmt.Printf("Данные за %v удалены\n", sliceToInt)
 
@@ -42,7 +42,7 @@ func deleteHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 // TODO генерировать график исходя из дат по оси X
 // getGraph генерирует график из введенных раннее данных
 func getGraph(m *tb.Message, c *mongo.Collection, b *tb.Bot) {
-	filter := bson.D{{"id", m.Sender.ID}}
+	filter := bson.D{{Key: "id", Value: m.Sender.ID}}
 	cursor, err := c.Find(context.TODO(), filter)
 	if err != nil {
 		fmt.Println("c.Find ERROR:", err)
@@ -112,7 +112,7 @@ func getDate(m *tb.Message, collection *mongo.Collection, b *tb.Bot, weight Weig
 	var find Weight
 
 	// Ищем совпадение на основе полей даты и ID отправителя
-	filter := bson.D{{"date", weight.Date}, {"id", m.Sender.ID}}
+	filter := bson.D{{Key: "date", Value: weight.Date}, {Key: "id", Value: m.Sender.ID}}
 	err := collection.FindOne(context.TODO(), filter).Decode(&find)
 
 	if err != nil {
@@ -158,13 +158,12 @@ func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
 // validationDate validation of the entered date
 // func validationDate(s []string, b *tb.Bot, m *tb.Message) error {
 func validationDate(s string) error {
-	today := time.Now()
 	d, err := time.Parse("02/01/06", s)
 	if err != nil {
-		return errors.New("error from validationDate")
+		return errors.New("problem parsing date")
 	}
-	if today.Before(d) {
-		return errors.New("error from validationDate")
+	if time.Now().Before(d) {
+		return errors.New("error from future")
 	}
 	return nil
 }
@@ -184,7 +183,7 @@ func postValue(m *tb.Message, c *mongo.Collection, b *tb.Bot, w Weight) {
 	var find Weight
 
 	// Ищем совпадение на основе полей даты и ID отправителя
-	filter := bson.D{{"date", w.Date}, {"id", w.ID}}
+	filter := bson.D{{Key: "date", Value: w.Date}, {Key: "id", Value: w.ID}}
 	_ = c.FindOne(context.TODO(), filter).Decode(&find)
 
 	// Если не находим, то создаём запись в БД
@@ -198,8 +197,8 @@ func postValue(m *tb.Message, c *mongo.Collection, b *tb.Bot, w Weight) {
 		// Иначе обновляем значение
 	} else {
 		update := bson.D{
-			{"$set", bson.D{
-				{"weight", w.Weight},
+			{Key: "$set", Value: bson.D{
+				{Key: "weight", Value: w.Weight},
 			}},
 		}
 		_, err := c.UpdateOne(context.TODO(), filter, update)

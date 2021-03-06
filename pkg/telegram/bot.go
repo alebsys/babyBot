@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/alebsys/baby-bot/config"
 	"github.com/alebsys/baby-bot/pkg/db"
 	tb "gopkg.in/tucnak/telebot.v2"
 )
@@ -36,11 +35,6 @@ var (
 
 // NewBot ...
 func NewBot(configBot tb.Settings) {
-
-	if err := config.Init(); err != nil {
-		log.Fatalf("%s", err.Error())
-	}
-
 	fmt.Println("Hello, I am babyBot!")
 
 	collection := db.InitCollection()

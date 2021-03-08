@@ -17,6 +17,17 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// start ...
+func start(m *tb.Message) {
+	if !m.Private() {
+		return
+	}
+	B.Send(m.Sender, "Привет!", menu)
+	B.Handle(tb.OnText, func(m *tb.Message) {
+		B.Send(m.Sender, "Выберите один из пунктов меню.", menu)
+	})
+}
+
 // TODO создать функцию для удаления данных
 func deleteHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 	valueToSlice := strings.Split(m.Text, " ")
@@ -36,62 +47,6 @@ func deleteHandler(m *tb.Message, collection *mongo.Collection, b *tb.Bot) {
 	_, err = b.Send(m.Sender, "Данные за "+dateValue+" удалены")
 	if err != nil {
 		log.Fatal(err)
-	}
-}
-
-// TODO генерировать график исходя из дат по оси X
-// getGraph генерирует график из введенных раннее данных
-func getGraph(m *tb.Message, c *mongo.Collection, b *tb.Bot) {
-	filter := bson.D{{Key: "id", Value: m.Sender.ID}}
-	cursor, err := c.Find(context.TODO(), filter)
-	if err != nil {
-		fmt.Println("c.Find ERROR:", err)
-	}
-
-	var y []float64
-	var yFloat []float64
-
-	for cursor.Next(context.TODO()) {
-		var p Weight
-
-		// Decode the document
-		if err := cursor.Decode(&p); err != nil {
-			log.Fatal("cursor.Decode ERROR:", err)
-		}
-
-		y = append(y, p.Weight)
-
-	}
-	for i := range y {
-		yFloat = append(yFloat, float64(i))
-	}
-
-	graph := chart.Chart{
-		Series: []chart.Series{
-			chart.ContinuousSeries{
-				Style: chart.Style{
-					StrokeColor: chart.GetDefaultColor(0).WithAlpha(64),
-					FillColor:   chart.GetDefaultColor(0).WithAlpha(64),
-				},
-				XValues: yFloat,
-				YValues: y,
-			},
-		},
-	}
-
-	buffer := bytes.NewBuffer([]byte{})
-
-	err = graph.Render(chart.PNG, buffer)
-	if err != nil {
-		log.Printf("graph.Render ERROR: %v", err)
-		b.Send(m.Sender, "Слишком мало данных для отображения, минимум 2 записи.\nДобавьте еще!")
-		return
-	}
-
-	p := &tb.Photo{File: tb.FromReader(buffer)}
-	_, err = b.SendAlbum(m.Sender, tb.Album{p})
-	if err != nil {
-		log.Fatal("SendPhoto ERROR:", err)
 	}
 }
 
@@ -207,4 +162,106 @@ func postValue(m *tb.Message, c *mongo.Collection, b *tb.Bot, w Weight) {
 		}
 		fmt.Println("Значение обновлено.")
 	}
+}
+
+func postMenu(m *tb.Message) {
+	weight = Weight{}
+	B.Send(m.Sender, "Введите дату(число/месяц/год) и свой вес в кг.\nПример: `21/10/20 80.3` или `01/10/20 65`.", back)
+	B.Handle(tb.OnText, func(m *tb.Message) {
+		if err := generateValue(m, B, &weight); err != nil {
+			return
+		}
+		postValue(m, collection, B, weight)
+		B.Send(m.Sender, "Значение добавлено в базу данных.", menu)
+		B.Handle(tb.OnText, func(m *tb.Message) {
+			B.Send(m.Sender, "Выберите один из пунктов меню.", menu)
+		})
+	})
+}
+
+////////////////////get////////////////////
+
+func getMenu(m *tb.Message) {
+	B.Send(m.Sender, "Что вы хотите посмотреть?", get)
+	B.Handle(tb.OnText, func(m *tb.Message) {
+		B.Send(m.Sender, "Выберите один из пунктов меню.", get)
+	})
+}
+
+func getMenuDate(m *tb.Message) {
+	weight = Weight{}
+	B.Send(m.Sender, "Введите интересующую вас дату (число/месяц/год).\nПример: `21/10/20`.", back)
+	B.Handle(tb.OnText, func(m *tb.Message) {
+		if err := generateDate(m, B, &weight); err != nil {
+			return
+		}
+		getDate(m, collection, B, weight)
+	})
+}
+
+func getMenuGraph(m *tb.Message) {
+	getGraph(m, collection, B)
+}
+
+// TODO генерировать график исходя из дат по оси X
+// getGraph генерирует график из введенных раннее данных
+func getGraph(m *tb.Message, c *mongo.Collection, b *tb.Bot) {
+	filter := bson.D{{Key: "id", Value: m.Sender.ID}}
+	cursor, err := c.Find(context.TODO(), filter)
+	if err != nil {
+		fmt.Println("c.Find ERROR:", err)
+	}
+
+	var y []float64
+	var yFloat []float64
+
+	for cursor.Next(context.TODO()) {
+		var p Weight
+
+		// Decode the document
+		if err := cursor.Decode(&p); err != nil {
+			log.Fatal("cursor.Decode ERROR:", err)
+		}
+
+		y = append(y, p.Weight)
+
+	}
+	for i := range y {
+		yFloat = append(yFloat, float64(i))
+	}
+
+	graph := chart.Chart{
+		Series: []chart.Series{
+			chart.ContinuousSeries{
+				Style: chart.Style{
+					StrokeColor: chart.GetDefaultColor(0).WithAlpha(64),
+					FillColor:   chart.GetDefaultColor(0).WithAlpha(64),
+				},
+				XValues: yFloat,
+				YValues: y,
+			},
+		},
+	}
+
+	buffer := bytes.NewBuffer([]byte{})
+
+	err = graph.Render(chart.PNG, buffer)
+	if err != nil {
+		log.Printf("graph.Render ERROR: %v", err)
+		b.Send(m.Sender, "Слишком мало данных для отображения, минимум 2 записи.\nДобавьте еще!")
+		return
+	}
+
+	p := &tb.Photo{File: tb.FromReader(buffer)}
+	_, err = b.SendAlbum(m.Sender, tb.Album{p})
+	if err != nil {
+		log.Fatal("SendPhoto ERROR:", err)
+	}
+}
+
+func backMenu(m *tb.Message) {
+	B.Send(m.Sender, "Давайте заново!", menu)
+	B.Handle(tb.OnText, func(m *tb.Message) {
+		B.Send(m.Sender, "Выберите один из пунктов меню.", menu)
+	})
 }

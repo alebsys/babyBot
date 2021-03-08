@@ -3,8 +3,12 @@ package telegram
 import (
 	"fmt"
 	"log"
+	"time"
 
+	"github.com/alebsys/baby-bot/config"
 	"github.com/alebsys/baby-bot/pkg/db"
+	"github.com/spf13/viper"
+	"go.mongodb.org/mongo-driver/mongo"
 	tb "gopkg.in/tucnak/telebot.v2"
 )
 
@@ -17,6 +21,9 @@ type Weight struct {
 
 var (
 	weight Weight
+	// B telebot
+	B          *tb.Bot
+	collection *mongo.Collection
 
 	menu = &tb.ReplyMarkup{ResizeReplyKeyboard: true}
 	get  = &tb.ReplyMarkup{ResizeReplyKeyboard: true}
@@ -33,26 +40,27 @@ var (
 	btnBackMenu = menu.Text("Вернуться в меню")
 )
 
-// NewBot ...
-func NewBot(configBot tb.Settings) {
-	fmt.Println("Hello, I am babyBot!")
-
-	collection := db.InitCollection()
-	b, err := tb.NewBot(configBot)
-	if err != nil {
-		log.Fatal(err)
+func init() {
+	if err := config.Init(); err != nil {
+		log.Fatal("error from config.Init(): ", err)
 	}
+	collection = db.InitCollection()
 
-	// Активирует стартовое меню бота
-	b.Handle("/start", func(m *tb.Message) {
-		if !m.Private() {
-			return
-		}
-		b.Send(m.Sender, "Привет!", menu)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			b.Send(m.Sender, "Выберите один из пунктов меню.", menu)
-		})
+	// create bot
+	var err error
+	B, err = tb.NewBot(tb.Settings{
+		URL:    "",
+		Token:  viper.GetString("apiToken"),
+		Poller: &tb.LongPoller{Timeout: viper.GetDuration("pollerTimeout") * time.Second},
 	})
+	if err != nil {
+		log.Fatal("error from NewBot: ", err)
+	}
+}
+
+// StartBot ...
+func StartBot() {
+	fmt.Println("Hello, I am babyBot!")
 
 	// Главное меню
 	menu.Reply(
@@ -71,56 +79,23 @@ func NewBot(configBot tb.Settings) {
 		menu.Row(btnBackMenu),
 	)
 
+	// Активирует стартовое меню бота
+	B.Handle("/start", start)
+
 	// Обрабатывает ввод данных
-	b.Handle(&btnPostValue, func(m *tb.Message) {
-		weight = Weight{}
-		b.Send(m.Sender, "Введите дату(число/месяц/год) и свой вес в кг.\nПример: `21/10/20 80.3` или `01/10/20 65`.", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			if err := generateValue(m, b, &weight); err != nil {
-				return
-			}
-			postValue(m, collection, b, weight)
-			b.Send(m.Sender, "Значение добавлено в базу данных.", menu)
-			b.Handle(tb.OnText, func(m *tb.Message) {
-				b.Send(m.Sender, "Выберите один из пунктов меню.", menu)
-			})
-		})
-	})
+	B.Handle(&btnPostValue, postMenu)
 
 	// Вход в меню получения статистики
-	b.Handle(&btnGetMenu, func(m *tb.Message) {
-		weight = Weight{}
-		b.Send(m.Sender, "Что вы хотите посмотреть?", get)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			b.Send(m.Sender, "Выберите один из пунктов меню.", get)
-		})
-	})
+	B.Handle(&btnGetMenu, getMenu)
 
 	// Обрабатывает получение данных за определенную дату
-	b.Handle(&btnGetDate, func(m *tb.Message) {
-		weight = Weight{}
-		b.Send(m.Sender, "Введите интересующую вас дату (число/месяц/год).\nПример: `21/10/20`.", back)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			if err := generateDate(m, b, &weight); err != nil {
-				return
-			}
-			getDate(m, collection, b, weight)
-		})
-	})
+	B.Handle(&btnGetDate, getMenuDate)
 
 	// Обрабатывает генерацию графика
-	b.Handle(&btnGetGraph, func(m *tb.Message) {
-		getGraph(m, collection, b)
-
-	})
+	B.Handle(&btnGetGraph, getMenuGraph)
 
 	// Выход в стартовое меню
-	b.Handle(&btnBackMenu, func(m *tb.Message) {
-		b.Send(m.Sender, "Давайте заново!", menu)
-		b.Handle(tb.OnText, func(m *tb.Message) {
-			b.Send(m.Sender, "Выберите один из пунктов меню.", menu)
-		})
-	})
+	B.Handle(&btnBackMenu, backMenu)
 
-	b.Start()
+	B.Start()
 }

@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/spf13/viper v1.7.1
+	github.com/stretchr/testify v1.7.0
 	github.com/wcharczuk/go-chart v2.0.1+incompatible
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 	go.mongodb.org/mongo-driver v1.4.6

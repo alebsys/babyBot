@@ -42,7 +42,7 @@ func TestValidationWeigth(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run("check "+tc.caseName, func(t *testing.T) {
-			err := validationWeigth(tc.value)
+			err := validationWeight(tc.value)
 			if err != nil && err.Error() != tc.expected {
 				t.Fatalf("test %s failed. Got: %v, want: %v", tc.caseName, err.Error(), tc.expected)
 			}

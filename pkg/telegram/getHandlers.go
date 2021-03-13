@@ -37,7 +37,14 @@ func getMenu(m *tb.Message) {
 
 // getMenuDate ...
 func getMenuDate(m *tb.Message) {
-	_, _ = B.Send(m.Sender, "Введите интересующую вас дату (число/месяц/год).\nПример: `21/10/20`.", back)
+	_, _ = B.Send(
+		m.Sender,
+		"Введите интересующую вас дату как `число/месяц/год`.\n\n"+
+			"Пример: `21/10/20`.",
+		&tb.SendOptions{
+			ParseMode: tb.ModeMarkdown,
+		},
+		back)
 	B.Handle(tb.OnText, func(m *tb.Message) {
 		if err := generateDate(m, B, &weight); err != nil {
 			return

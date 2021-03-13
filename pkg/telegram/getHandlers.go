@@ -24,20 +24,20 @@ import (
 )
 
 var (
-  w Weight
+	w Weight
 )
 
 // getMenu ...
 func getMenu(m *tb.Message) {
-	_,_ = B.Send(m.Sender, "Что вы хотите посмотреть?", get)
+	_, _ = B.Send(m.Sender, "Что вы хотите посмотреть?", get)
 	B.Handle(tb.OnText, func(m *tb.Message) {
-		_,_ = B.Send(m.Sender, "Выберите один из пунктов меню.", get)
+		_, _ = B.Send(m.Sender, "Выберите один из пунктов меню.", get)
 	})
 }
 
 // getMenuDate ...
 func getMenuDate(m *tb.Message) {
-	_,_ = B.Send(m.Sender, "Введите интересующую вас дату (число/месяц/год).\nПример: `21/10/20`.", back)
+	_, _ = B.Send(m.Sender, "Введите интересующую вас дату (число/месяц/год).\nПример: `21/10/20`.", back)
 	B.Handle(tb.OnText, func(m *tb.Message) {
 		if err := generateDate(m, B, &weight); err != nil {
 			return
@@ -53,13 +53,13 @@ func generateDate(m *tb.Message, b *tb.Bot, weight *Weight) error {
 	s := strings.Split(m.Text, " ")
 
 	if err := validationDate(s[0]); err != nil {
-		_,_ = b.Send(
+		_, _ = b.Send(
 			m.Sender,
-			"*Неверный формат даты!*\n\nДата должна быть:\n\n" +
-				 "1. в формате `число/месяц/год`\n" +
-				 "2. за сегодняшнее или предыдущие числа\n\nПример `21/10/20`",
+			"*Неверный формат даты!*\n\nДата должна быть:\n\n"+
+				"1. в формате `число/месяц/год`\n"+
+				"2. за сегодняшнее или предыдущие числа\n\nПример `21/10/20`",
 			&tb.SendOptions{
-				ParseMode:             tb.ModeMarkdown,
+				ParseMode: tb.ModeMarkdown,
 			})
 		return errors.New("error from generateDate")
 	}
@@ -103,7 +103,7 @@ func getMenuGraph(m *tb.Message) {
 		fmt.Println("c.Find ERROR:", err)
 	}
 
-	values, _ := getGraphValues(w)
+	values, max, _ := getGraphValues(w)
 
 	graph := chart.BarChart{
 		Title: "Динамика вашего веса",
@@ -118,14 +118,13 @@ func getMenuGraph(m *tb.Message) {
 		YAxis: chart.YAxis{ // TODO добавить вывод значений по оси Y
 			Range: &chart.ContinuousRange{
 				Min: 0.0,
-				Max: 100.0, // TODO выссчитывать максимальную границу исходя из максимальный вес + 20-30
+				Max: max + 30,
 			},
 		},
-		Height:   512,
-		BarWidth: 60,
-		Bars: values,
+		Height:     512,
+		BarWidth:   60,
+		Bars:       values,
 		BarSpacing: 500,
-
 	}
 
 	buffer := bytes.NewBuffer([]byte{})
@@ -133,12 +132,11 @@ func getMenuGraph(m *tb.Message) {
 	err = graph.Render(chart.PNG, buffer)
 	if err != nil {
 		log.Printf("graph.Render ERROR: %v", err)
-		_,_ = B.Send(
+		_, _ = B.Send(
 			m.Sender,
 			"Мало данных для отображения графика (минимум 2 записи).\n\n*Добавьте еще!*",
 			&tb.SendOptions{
-				ParseMode:
-					tb.ModeMarkdown,
+				ParseMode: tb.ModeMarkdown,
 			})
 		return
 	}
@@ -152,7 +150,7 @@ func getMenuGraph(m *tb.Message) {
 }
 
 // getGraphValues ...
-func getGraphValues(w Weight) ([]chart.Value, error) {
+func getGraphValues(w Weight) ([]chart.Value, float64, error) {
 	var v []chart.Value
 
 	opt := options.Find()
@@ -161,19 +159,25 @@ func getGraphValues(w Weight) ([]chart.Value, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	var max float64
 	for sortCursor.Next(context.TODO()) {
 		// Decode the document
 		if err := sortCursor.Decode(&w); err != nil {
 			log.Fatal("cursor.Decode ERROR: ", err)
-			return nil, err
+			return nil, 0, err
 		}
 
 		v = append(v,
 			chart.Value{
-			Label: w.Date,
-			Value: w.Weight,
-			Style: chart.Style{Hidden: false},
+				Label: w.Date,
+				Value: w.Weight,
+				Style: chart.Style{Hidden: false},
 			})
+
+		if w.Weight > max {
+			max = w.Weight
+		}
 	}
-	return v, nil
+	return v, max, nil
 }

@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/go-echarts/go-echarts/v2 v2.2.3
+	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/wcharczuk/go-chart v2.0.1+incompatible

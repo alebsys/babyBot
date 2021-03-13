@@ -2,7 +2,7 @@ package telegram
 
 import (
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/alebsys/baby-bot/config"
@@ -25,6 +25,8 @@ var (
 	B          *tb.Bot
 	collection *mongo.Collection
 
+	//m *tb.Message
+
 	menu = &tb.ReplyMarkup{ResizeReplyKeyboard: true}
 	get  = &tb.ReplyMarkup{ResizeReplyKeyboard: true}
 	back = &tb.ReplyMarkup{ResizeReplyKeyboard: true}
@@ -41,6 +43,9 @@ var (
 )
 
 func init() {
+
+	log.SetFormatter(&log.JSONFormatter{})
+
 	if err := config.Init(); err != nil {
 		log.Fatal("error from config.Init(): ", err)
 	}

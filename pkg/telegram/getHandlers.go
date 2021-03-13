@@ -5,26 +5,39 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
-	"strings"
+	//"github.com/go-echarts/go-echarts/v2/opts"
 
+	//"io"
+	"log"
+	//"os"
+	"strings"
+	//"github.com/go-echarts/go-echarts/v2/charts"
+	//"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/wcharczuk/go-chart/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+
+	// "go.mongodb.org/mongo-driver@latest"
+
+	"go.mongodb.org/mongo-driver/mongo/options"
 	tb "gopkg.in/tucnak/telebot.v2"
+)
+
+var (
+  w Weight
 )
 
 // getMenu ...
 func getMenu(m *tb.Message) {
-	B.Send(m.Sender, "Что вы хотите посмотреть?", get)
+	_,_ = B.Send(m.Sender, "Что вы хотите посмотреть?", get)
 	B.Handle(tb.OnText, func(m *tb.Message) {
-		B.Send(m.Sender, "Выберите один из пунктов меню.", get)
+		_,_ = B.Send(m.Sender, "Выберите один из пунктов меню.", get)
 	})
 }
 
 // getMenuDate ...
 func getMenuDate(m *tb.Message) {
-	B.Send(m.Sender, "Введите интересующую вас дату (число/месяц/год).\nПример: `21/10/20`.", back)
+	_,_ = B.Send(m.Sender, "Введите интересующую вас дату (число/месяц/год).\nПример: `21/10/20`.", back)
 	B.Handle(tb.OnText, func(m *tb.Message) {
 		if err := generateDate(m, B, &weight); err != nil {
 			return
@@ -40,9 +53,21 @@ func generateDate(m *tb.Message, b *tb.Bot, weight *Weight) error {
 	s := strings.Split(m.Text, " ")
 
 	if err := validationDate(s[0]); err != nil {
-		b.Send(m.Sender, "Неверный формат даты!\nДата должна быть:\n* в формате *число/месяц/год*\n* за сегодняшнее или предыдущие числа\nПример `21/10/21`")
+		_,_ = b.Send(
+			m.Sender,
+			"*Неверный формат даты!*\n\nДата должна быть:\n\n" +
+				 "1. в формате `число/месяц/год`\n" +
+				 "2. за сегодняшнее или предыдущие числа\n\nПример `21/10/20`",
+			&tb.SendOptions{
+				ParseMode:             tb.ModeMarkdown,
+			})
 		return errors.New("error from generateDate")
 	}
+
+	//_, _ = B.Send(m.Chat, rspMessage, &tb.SendOptions{
+	//	DisableWebPagePreview: true,
+	//	ParseMode:             tb.ModeMarkdown,
+	//})
 	weight.Date = m.Text
 	return nil
 }
@@ -57,58 +82,50 @@ func getDate(m *tb.Message, collection *mongo.Collection, b *tb.Bot, weight Weig
 
 	if err != nil {
 		log.Printf("event from collection.FindOne: %v", err)
-		_, err := b.Send(m.Sender, "Данные за "+weight.Date+" отсутствуют.")
+		_, err := b.Send(m.Sender, fmt.Sprintf("Данные за %v отсутствуют.", weight.Date))
 		if err != nil {
 			log.Printf("error from b.Send if collection.FindOne err != nil : %v", err)
 		}
+
 		return errors.New("error from getDate")
 	}
-	_, err = b.Send(m.Sender, "Вес за "+find.Date+" -- "+fmt.Sprintf("%.1f", find.Weight)+"кг")
+	_, err = b.Send(m.Sender, fmt.Sprintf("Вес за %v -- %.1f кг", find.Date, find.Weight))
 	if err != nil {
 		log.Printf("error from b.Send if collection.FindOne err == nil : %v", err)
 	}
 	return nil
 }
 
-// TODO генерировать график исходя из дат по оси X
-// getGraph генерирует график из введенных раннее данных
-// getMenuGraph ...
 func getMenuGraph(m *tb.Message) {
 	filter := bson.D{{Key: "id", Value: m.Sender.ID}}
-	cursor, err := collection.Find(context.TODO(), filter)
+	_, err := collection.Find(context.TODO(), filter)
 	if err != nil {
 		fmt.Println("c.Find ERROR:", err)
 	}
 
-	var y []float64
-	var yFloat []float64
+	values, _ := getGraphValues(w)
 
-	for cursor.Next(context.TODO()) {
-		var p Weight
-
-		// Decode the document
-		if err := cursor.Decode(&p); err != nil {
-			log.Fatal("cursor.Decode ERROR:", err)
-		}
-
-		y = append(y, p.Weight)
-
-	}
-	for i := range y {
-		yFloat = append(yFloat, float64(i))
-	}
-
-	graph := chart.Chart{
-		Series: []chart.Series{
-			chart.ContinuousSeries{
-				Style: chart.Style{
-					StrokeColor: chart.GetDefaultColor(0).WithAlpha(64),
-					FillColor:   chart.GetDefaultColor(0).WithAlpha(64),
-				},
-				XValues: yFloat,
-				YValues: y,
+	graph := chart.BarChart{
+		Title: "Динамика вашего веса",
+		Background: chart.Style{
+			Padding: chart.Box{
+				Top:    50,
+				Left:   25,
+				Right:  25,
+				Bottom: 50,
 			},
 		},
+		YAxis: chart.YAxis{ // TODO добавить вывод значений по оси Y
+			Range: &chart.ContinuousRange{
+				Min: 0.0,
+				Max: 100.0, // TODO выссчитывать максимальную границу исходя из максимальный вес + 20-30
+			},
+		},
+		Height:   512,
+		BarWidth: 60,
+		Bars: values,
+		BarSpacing: 500,
+
 	}
 
 	buffer := bytes.NewBuffer([]byte{})
@@ -116,7 +133,13 @@ func getMenuGraph(m *tb.Message) {
 	err = graph.Render(chart.PNG, buffer)
 	if err != nil {
 		log.Printf("graph.Render ERROR: %v", err)
-		B.Send(m.Sender, "Слишком мало данных для отображения, минимум 2 записи.\nДобавьте еще!")
+		_,_ = B.Send(
+			m.Sender,
+			"Мало данных для отображения графика (минимум 2 записи).\n\n*Добавьте еще!*",
+			&tb.SendOptions{
+				ParseMode:
+					tb.ModeMarkdown,
+			})
 		return
 	}
 
@@ -125,4 +148,32 @@ func getMenuGraph(m *tb.Message) {
 	if err != nil {
 		log.Fatal("SendPhoto ERROR:", err)
 	}
+
+}
+
+// getGraphValues ...
+func getGraphValues(w Weight) ([]chart.Value, error) {
+	var v []chart.Value
+
+	opt := options.Find()
+	opt.SetSort(bson.D{{Key: "date", Value: 1}})
+	sortCursor, err := collection.Find(context.TODO(), bson.D{{Key: "weight", Value: bson.D{{Key: "$gt", Value: 0}}}}, opt)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for sortCursor.Next(context.TODO()) {
+		// Decode the document
+		if err := sortCursor.Decode(&w); err != nil {
+			log.Fatal("cursor.Decode ERROR: ", err)
+			return nil, err
+		}
+
+		v = append(v,
+			chart.Value{
+			Label: w.Date,
+			Value: w.Weight,
+			Style: chart.Style{Hidden: false},
+			})
+	}
+	return v, nil
 }

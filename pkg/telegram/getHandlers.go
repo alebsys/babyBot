@@ -9,7 +9,7 @@ import (
 
 	//"io"
 	//logr "github.com/sirupsen/logrus"
-	"log"
+	log "github.com/sirupsen/logrus"
 	//"os"
 	"strings"
 	//"github.com/go-echarts/go-echarts/v2/charts"
@@ -22,6 +22,10 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo/options"
 	tb "gopkg.in/tucnak/telebot.v2"
+)
+
+const (
+	getGraphError = "Мало данных для отображения графика (минимум 2 записи).\n\n*Добавьте еще!*"
 )
 
 var (
@@ -72,46 +76,51 @@ func generateDate(m *tb.Message, b *tb.Bot, weight *Weight) error {
 		return errors.New("error from generateDate")
 	}
 
-	//_, _ = B.Send(m.Chat, rspMessage, &tb.SendOptions{
-	//	DisableWebPagePreview: true,
-	//	ParseMode:             tb.ModeMarkdown,
-	//})
 	weight.Date = m.Text
 	return nil
 }
 
 // getDate получает данные из БД исходя из переданной даты
 func getDate(m *tb.Message, collection *mongo.Collection, b *tb.Bot, weight Weight) error {
+	logger := log.WithFields(log.Fields{
+		"clientID":  m.Sender.ID,
+		"messageID": m.ID,
+		"function":  "getDate",
+	})
 	var find Weight
 
 	// Ищем совпадение на основе полей даты и ID отправителя
 	filter := bson.D{{Key: "date", Value: weight.Date}, {Key: "id", Value: m.Sender.ID}}
-	err := collection.FindOne(context.TODO(), filter).Decode(&find)
 
-	if err != nil {
-		log.Printf("event from collection.FindOne: %v", err)
+	if err := collection.FindOne(context.TODO(), filter).Decode(&find); err != nil {
+		logger.Errorf("event from collection.FindOne: %v", err)
 		_, err := b.Send(m.Sender, fmt.Sprintf("Данные за %v отсутствуют.", weight.Date))
 		if err != nil {
-			log.Printf("error from b.Send if collection.FindOne err != nil : %v", err)
+			logger.Errorf("error from b.Send if collection.FindOne err != nil : %v", err)
 		}
 
 		return errors.New("error from getDate")
 	}
-	_, err = b.Send(m.Sender, fmt.Sprintf("Вес за %v -- %.1f кг", find.Date, find.Weight))
-	if err != nil {
-		log.Printf("error from b.Send if collection.FindOne err == nil : %v", err)
+	if _, err := b.Send(m.Sender, fmt.Sprintf("Вес за %v -- %.1f кг", find.Date, find.Weight)); err != nil {
+		logger.Errorf("error from b.Send if collection.FindOne err == nil : %v", err)
 	}
 	return nil
 }
 
 func getMenuGraph(m *tb.Message) {
+	logger := log.WithFields(log.Fields{
+		"clientID":  m.Sender.ID,
+		"messageID": m.ID,
+		"function":  "getDate",
+	})
+
 	filter := bson.D{{Key: "id", Value: m.Sender.ID}}
 	_, err := collection.Find(context.TODO(), filter)
 	if err != nil {
 		fmt.Println("c.Find ERROR:", err)
 	}
 
-	values, max, _ := getGraphValues(w)
+	values, max, _ := getGraphValues(w, m)
 
 	graph := chart.BarChart{
 		Title: "Динамика вашего веса",
@@ -137,42 +146,41 @@ func getMenuGraph(m *tb.Message) {
 
 	buffer := bytes.NewBuffer([]byte{})
 
-	err = graph.Render(chart.PNG, buffer)
-	if err != nil {
-		log.Printf("graph.Render ERROR: %v", err)
-		_, _ = B.Send(
-			m.Sender,
-			"Мало данных для отображения графика (минимум 2 записи).\n\n*Добавьте еще!*",
-			&tb.SendOptions{
-				ParseMode: tb.ModeMarkdown,
-			})
+	if err = graph.Render(chart.PNG, buffer); err != nil {
+		logger.Errorf("graph.Render ERROR: %v", err)
+		_, _ = B.Send(m.Sender, getGraphError, markdownOn)
 		return
 	}
 
 	p := &tb.Photo{File: tb.FromReader(buffer)}
 	_, err = B.SendAlbum(m.Sender, tb.Album{p})
 	if err != nil {
-		log.Fatal("SendPhoto ERROR:", err)
+		logger.Errorf("SendPhoto ERROR: %v", err)
 	}
 
 }
 
 // getGraphValues ...
-func getGraphValues(w Weight) ([]chart.Value, float64, error) {
+func getGraphValues(w Weight, m *tb.Message) ([]chart.Value, float64, error) {
+	logger := log.WithFields(log.Fields{
+		"clientID":  m.Sender.ID,
+		"messageID": m.ID,
+		"function":  "getGraphValues",
+	})
 	var v []chart.Value
 
 	opt := options.Find()
 	opt.SetSort(bson.D{{Key: "date", Value: 1}})
 	sortCursor, err := collection.Find(context.TODO(), bson.D{{Key: "weight", Value: bson.D{{Key: "$gt", Value: 0}}}}, opt)
 	if err != nil {
-		log.Fatal(err)
+		logger.Errorf("collection.Find ERROR: %v", err)
 	}
 
 	var max float64
 	for sortCursor.Next(context.TODO()) {
 		// Decode the document
 		if err := sortCursor.Decode(&w); err != nil {
-			log.Fatal("cursor.Decode ERROR: ", err)
+			logger.Errorf("cursor.Decode ERROR: %v", err)
 			return nil, 0, err
 		}
 

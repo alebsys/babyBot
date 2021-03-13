@@ -14,7 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
+const (
 	postMenuMessage = "Введите дату `число/месяц/год` и вес в `кг`.\n\n" +
 		"Примеры:\n- `21/10/20 80.3`\n- `01/10/20 65`"
 
@@ -26,7 +26,9 @@ var (
 		"1. в формате десятичного числа\n" +
 		"2. с разделителем в виде точки (`.`)\n\n" +
 		"Пример `80` или `76.6`"
+)
 
+var (
 	markdownOn = &tb.SendOptions{
 		ParseMode: tb.ModeMarkdown,
 	}
@@ -62,13 +64,13 @@ func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
 
 	if err := validationDate(s[0]); err != nil {
 		_, _ = b.Send(m.Sender, wrongDateInputMessage, markdownOn)
-		logger.Info("the user entered the data incorrectly - the date ")
+		logger.Info("the user entered the data incorrectly: ", m.Text)
 		return errors.New("error from validationDate")
 	}
 
 	if err := validationWeight(s[1]); err != nil {
 		_, _ = b.Send(m.Sender, wrongWeightInputMessage, markdownOn)
-		logger.Info("the user entered the data incorrectly - the weight ")
+		logger.Info("the user entered the data incorrectly: ", m.Text)
 		return errors.New("error from validationWeight")
 	}
 

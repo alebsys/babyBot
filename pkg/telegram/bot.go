@@ -1,7 +1,7 @@
 package telegram
 
 import (
-	"fmt"
+	"github.com/alebsys/baby-bot/pkg/logs"
 	log "github.com/sirupsen/logrus"
 	"time"
 
@@ -44,6 +44,8 @@ var (
 
 func init() {
 
+	logs.InitLogger()
+
 	log.SetFormatter(&log.JSONFormatter{})
 
 	if err := config.Init(); err != nil {
@@ -65,7 +67,7 @@ func init() {
 
 // StartBot ...
 func StartBot() {
-	fmt.Println("Hello, I am babyBot!")
+	logs.Sugar.Info("babyBot ready for work")
 
 	// Главное меню
 	menu.Reply(

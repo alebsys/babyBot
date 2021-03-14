@@ -3,15 +3,15 @@ package telegram
 import (
 	"context"
 	"errors"
-	//"log"
+	l "github.com/alebsys/baby-bot/pkg/logs"
+	"go.uber.org/zap"
+
 	"strconv"
 	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	tb "gopkg.in/tucnak/telebot.v2"
-	//"github.com/alebsys/baby-bot/pkg/logr"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -29,48 +29,53 @@ const (
 )
 
 var (
-	markdownOn = &tb.SendOptions{
-		ParseMode: tb.ModeMarkdown,
-	}
+	markdownOn = &tb.SendOptions{ParseMode: tb.ModeMarkdown,}
 )
 
 func postMenu(m *tb.Message) {
 
 	weight = Weight{}
 
-	_, _ = B.Send(m.Sender, postMenuMessage, markdownOn, back)
+	if _, err := B.Send(m.Sender, postMenuMessage, markdownOn, back); err != nil {
+		l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
+	}
 
 	B.Handle(tb.OnText, func(m *tb.Message) {
 		if err := generateValue(m, B, &weight); err != nil {
 			return
 		}
 		postValue(collection, weight, m)
-		_, _ = B.Send(m.Sender, "Значение добавлено в базу данных.", menu)
+		if _, err := B.Send(m.Sender, "Значение добавлено в базу данных.", menu); err != nil {
+			l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
+		}
 
 		B.Handle(tb.OnText, func(m *tb.Message) {
-			_, _ = B.Send(m.Sender, "Выберите один из пунктов меню.", menu)
+			if _, err := B.Send(m.Sender, "Выберите один из пунктов меню.", menu); err != nil {
+				l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
+			}
 		})
 	})
 }
 
 // generateValue подготавливает дату и значение веса для записи в БД
 func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
-	logger := log.WithFields(log.Fields{
-		"clientID":  m.Sender.ID,
-		"messageID": m.ID,
-		"function":  "generateValue",
-	})
 	s := strings.Split(m.Text, " ")
 
 	if err := validationDate(s[0]); err != nil {
-		_, _ = b.Send(m.Sender, wrongDateInputMessage, markdownOn)
-		logger.Info("the user entered the data incorrectly: ", m.Text)
+		if _, err := b.Send(m.Sender, wrongDateInputMessage, markdownOn); err != nil {
+			l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
+		}
+		l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).
+			Infof("the user entered the data incorrectly: %v", m.Text)
 		return errors.New("error from validationDate")
 	}
 
 	if err := validationWeight(s[1]); err != nil {
-		_, _ = b.Send(m.Sender, wrongWeightInputMessage, markdownOn)
-		logger.Info("the user entered the data incorrectly: ", m.Text)
+		if _, err = b.Send(m.Sender, wrongWeightInputMessage, markdownOn); err != nil {
+			l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
+		}
+		l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).
+			Infof("the user entered the data incorrectly: %v", m.Text)
 		return errors.New("error from validationWeight")
 	}
 
@@ -85,11 +90,6 @@ func generateValue(m *tb.Message, b *tb.Bot, weight *Weight) error {
 func postValue(c *mongo.Collection, w Weight, m *tb.Message) {
 
 	var find Weight
-	logger := log.WithFields(log.Fields{
-		"clientID":  m.Sender.ID,
-		"messageID": m.ID,
-		"function":  "postValue",
-	})
 
 	// Ищем совпадение на основе полей даты и ID отправителя
 	filter := bson.D{{Key: "date", Value: w.Date}, {Key: "id", Value: w.ID}}
@@ -97,9 +97,8 @@ func postValue(c *mongo.Collection, w Weight, m *tb.Message) {
 
 	// Если не находим, то создаём запись в БД
 	if find.Weight == 0 {
-		_, err := c.InsertOne(context.TODO(), w)
-		if err != nil {
-			logger.Error("failed to update the value in the database", err)
+		if _, err := c.InsertOne(context.TODO(), w); err != nil {
+			l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
 		}
 
 		// Иначе обновляем значение
@@ -109,10 +108,10 @@ func postValue(c *mongo.Collection, w Weight, m *tb.Message) {
 				{Key: "weight", Value: w.Weight},
 			}},
 		}
-		_, err := c.UpdateOne(context.TODO(), filter, update)
-		if err != nil {
-			logger.Error("failed to update the value in the database", err)
+		if _, err := c.UpdateOne(context.TODO(), filter, update); err != nil {
+			l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
 		}
 	}
-	logger.Info("Value insert in the database")
+	l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).
+		Infof("Value insert in the database: %v", m.Text)
 }

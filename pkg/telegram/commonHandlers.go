@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	l "github.com/alebsys/baby-bot/pkg/logs"
+	"go.uber.org/zap"
 	"log"
 	"strconv"
 	"strings"
@@ -20,9 +22,13 @@ func start(m *tb.Message) {
 	if !m.Private() {
 		return
 	}
-	B.Send(m.Sender, "Привет!", menu)
+	if _, err := B.Send(m.Sender, "Привет!", menu); err != nil {
+		l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
+	}
 	B.Handle(tb.OnText, func(m *tb.Message) {
-		B.Send(m.Sender, "Выберите один из пунктов меню.", menu)
+		if _, err := B.Send(m.Sender, "Выберите один из пунктов меню.", menu); err != nil {
+			l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
+		}
 	})
 }
 
@@ -70,8 +76,12 @@ func validationWeight(s string) error {
 }
 
 func backMenu(m *tb.Message) {
-	B.Send(m.Sender, "Давайте заново!", menu)
+	if _, err := B.Send(m.Sender, "Давайте заново!", menu); err != nil {
+		l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
+	}
 	B.Handle(tb.OnText, func(m *tb.Message) {
-		B.Send(m.Sender, "Выберите один из пунктов меню.", menu)
+		if _, err := B.Send(m.Sender, "Выберите один из пунктов меню.", menu); err != nil {
+			l.Sugar.With(zap.Int("clientID", m.Sender.ID), zap.Int("messageID", m.ID)).Error(err)
+		}
 	})
 }
